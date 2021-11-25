@@ -11,13 +11,14 @@ import numpy as np
 import networkx as nx
 import datetime as dt
 import time
+from sklearn.metrics import mean_absolute_percentage_error as mape
 
 def read_data():
     # print("Bitte geben Sie den vollstaendigen Dateipfad der csv-Datei ein:")
     # path = input()
-    path = "M:\\Dokumente\\Studium\\Info\\SS21\\BachelorArbeit\\x264_pervolution_measurements_bin.csv"
+    path = "M:\\Dokumente\\Studium\\Info\\SS21\\BachelorArbeit\\Apache_pervolution_energy_bin.csv"
     influences = pd.read_csv(path, delimiter=";")
-    #influences = influences.loc[influences["revision"]=="2.4.38"]
+    influences = influences.loc[influences["revision"]=="2.4.38"]
     return influences
 
 def remove_colinearity(df): # koennte lange dauern
@@ -87,7 +88,7 @@ def sort_data(influences):
     # anzahl_perfs = int(input())
     # print("Bitte geben Sie die Namen der Messwerte ein, so wie sie in der csv-Datei stehen."
     #      "\nBestätigen Sie jede Eingabe mit Enter!")
-    perfs = ["performance", "size", "cpu"]
+    perfs = ["performance", "cpu", "benchmark-energy", "fixed-energy"]
     # print(f"\nBooleans: {booleans}")
     return booleans, non_booleans, perfs
 
@@ -96,10 +97,10 @@ def choose_first_samples(influences):
     # Startmenge kann geaendert werden, indem choose_first_samples ersetzt/ ueberschrieben wird
     rdm.seed(dt.datetime.now())
     startSamples = []
-    # i in range(50) falls Math.ceil(influences.shape[0]/20) < 50
-    #x = math.ceil(influences.shape[0] / 40.0) if math.ceil(influences.shape[0] / 20.0) >= 50 else 50
+    # i in range(20) falls influences.shape[0] < 1000
+    x = math.ceil(influences.shape[0] / 40.0) if influences.shape[0] >= 1000 else 20
     #print(f"x= {x}")
-    x = 20
+    #x = 20
     for i in range(x):
         a = np.random.choice(influences.index)
         startSamples.append(influences.loc[a])
@@ -142,8 +143,9 @@ def loop(influences, test_data, booleans, perf_names):
     coefs.append(new_model.coef_[0])
     influences, new_samples, coefs_mean, coefs_std = choose_next_samples(influences, coefs)
     samples.extend(new_samples)
-    prediction = test_model_prediction(new_model, test_bools, test_perfs, booleans)
+    score = test_model_prediction(new_model, test_bools, test_perfs, booleans)
     ende_laufzeit_berechnung = time.time()
+    print(f"prediction error: {score}")
     #show(coefs_mean, coefs_std, all_f_names)  # zeige Mittelwerte und Stdabw.
     return ende_laufzeit_berechnung
 
@@ -208,12 +210,14 @@ def test_model_prediction(model, test_bools, test_perfs, bool_names):
     prediction = model.predict(X)
     # print("Prediction:")
     # print(prediction)
+    test_perfs = np.array(test_perfs).reshape(-1,1)
     # print(f"shape of prediction: {prediction.shape}")
+    # print(f"shape of test_perfs: {test_perfs.shape}")
     # print(f"feature_names: {len(feature_names)}")
     # print(f"test_perfs: {type(test_perfs[0])}")
     # print(f"shape of X: {X.shape}")
-    print(model.score(X, test_perfs))
-    return model.score(X, test_perfs)
+    # print(mape(test_perfs, prediction))
+    return mape(test_perfs, prediction)
 
 def show(lmodel, std_s, feature_names):
     # lmodel = means der einzelnen Features
